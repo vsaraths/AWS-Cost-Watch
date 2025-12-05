@@ -6,14 +6,18 @@ from datetime import datetime
 # Initialize AWS Cost Explorer client
 client = boto3.client('ce')
 
-def get_total_cost():
-    today = datetime.utcnow().date().strftime('%Y-%m-%d')
+def get_service_costs():
+    today = datetime.utcnow().date()
+    start = today.strftime('%Y-%m-%d')
+    end = (today + timedelta(days=1)).strftime('%Y-%m-%d')  # next day
+
     response = client.get_cost_and_usage(
-        TimePeriod={'Start': today, 'End': today},
+        TimePeriod={'Start': start, 'End': end},
         Granularity='DAILY',
-        Metrics=['UnblendedCost']
+        Metrics=['UnblendedCost'],
+        GroupBy=[{'Type': 'DIMENSION', 'Key': 'SERVICE'}]
     )
-    return response['ResultsByTime'][0]['Total']['UnblendedCost']['Amount']
+    return response['ResultsByTime'][0]['Groups']
 
 def show_dashboard():
     console = Console()

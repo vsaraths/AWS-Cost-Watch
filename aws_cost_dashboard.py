@@ -1,13 +1,13 @@
 import boto3
 from rich.console import Console
 from rich.table import Table
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 # Initialize AWS Cost Explorer client
 client = boto3.client('ce')
 
 def get_service_costs():
-    today = datetime.utcnow().date()
+    today = datetime.now(timezone.utc).date()
     start = (today - timedelta(days=1)).strftime('%Y-%m-%d')  # yesterday
     end = today.strftime('%Y-%m-%d')                          # today
 
@@ -20,7 +20,7 @@ def get_service_costs():
     return response['ResultsByTime'][0]['Groups']
 
 def get_total_cost():
-    today = datetime.utcnow().date()
+    today = datetime.now(timezone.utc).date()
     start = (today - timedelta(days=1)).strftime('%Y-%m-%d')
     end = today.strftime('%Y-%m-%d')
 

@@ -1,414 +1,235 @@
 import boto3
 from datetime import datetime, timedelta, timezone
-from rich.console import Console
+from rich.live import Live
 from rich.table import Table
 from rich.panel import Panel
+from rich.layout import Layout
+from rich.console import Console
+from rich.text import Text
+from rich.align import Align
+from rich.style import Style
 import time
+import math
 
-# Initialize AWS clients
-ce_client = boto3.client('ce', region_name='us-east-1')
-ec2_client = boto3.client('ec2', region_name='us-east-1')
-rds_client = boto3.client('rds', region_name='us-east-1')
-s3_client = boto3.client('s3')
-lambda_client = boto3.client('lambda', region_name='us-east-1')
-dynamodb_client = boto3.client('dynamodb', region_name='us-east-1')
+# --- CONFIGURATION ---
+REFRESH_RATE = 60  # Update every 1 minute
+CURRENT_REGION_LIMIT = None # Set to ['us-east-1', 'us-west-2'] to limit scope, or None for ALL regions.
 
-# AWS Free Tier Limits (Monthly)
-FREE_TIER_LIMITS = {
-    'Amazon Elastic Compute Cloud - Compute': {
-        'name': 'EC2',
-        'limit': 750,  # hours per month
-        'unit': 'hours',
-        'description': '750 hours t2.micro/t3.micro'
-    },
-    'Amazon Relational Database Service': {
-        'name': 'RDS',
-        'limit': 750,  # hours per month
-        'unit': 'hours',
-        'description': '750 hours db.t2.micro/db.t3.micro'
-    },
-    'Amazon Simple Storage Service': {
-        'name': 'S3',
-        'limit': 5,  # GB storage
-        'unit': 'GB',
-        'description': '5 GB storage, 20K GET, 2K PUT'
-    },
-    'AWS Lambda': {
-        'name': 'Lambda',
-        'limit': 1000000,  # requests per month
-        'unit': 'requests',
-        'description': '1M requests, 400K GB-seconds'
-    },
-    'Amazon DynamoDB': {
-        'name': 'DynamoDB',
-        'limit': 25,  # GB storage
-        'unit': 'GB',
-        'description': '25 GB storage, 25 RCU/WCU'
-    },
-    'Amazon CloudWatch': {
-        'name': 'CloudWatch',
-        'limit': 10,  # metrics
-        'unit': 'metrics',
-        'description': '10 metrics, 10 alarms, 1M API requests'
-    },
-    'Amazon Virtual Private Cloud': {
-        'name': 'VPC',
-        'limit': 0,  # Free
-        'unit': 'free',
-        'description': 'Always free'
-    },
-    'AWS Key Management Service': {
-        'name': 'KMS',
-        'limit': 20000,  # requests
-        'unit': 'requests',
-        'description': '20K free requests'
-    },
-    'Amazon Simple Notification Service': {
-        'name': 'SNS',
-        'limit': 1000,  # emails
-        'unit': 'emails',
-        'description': '1K emails, 1M mobile pushes'
-    }
+# --- "LIVE" PRICING DATABASE (Estimates) ---
+# AWS Billing API has a 24h delay. We use this for Real-Time "Since Midnight" calculations.
+# Add your most used instance types here.
+PRICING_DB = {
+    # EC2 (On-Demand / Hour)
+    't2.micro': 0.0116, 't3.micro': 0.0104,
+    't2.small': 0.0230, 't3.small': 0.0208,
+    't2.medium': 0.0464, 't3.medium': 0.0416,
+    'm5.large': 0.0960, 'c5.large': 0.0850,
+    # RDS
+    'db.t2.micro': 0.017, 'db.t3.micro': 0.017,
+    'db.m5.large': 0.138,
 }
 
-def get_running_resources():
-    """Get all running AWS resources"""
-    resources = {
-        'ec2': [],
-        'rds': [],
-        's3': [],
-        'lambda': [],
-        'dynamodb': []
-    }
-    
+# --- GLOBAL VARS ---
+ce_client = boto3.client('ce', region_name='us-east-1')
+session_start_time = datetime.now(timezone.utc)
+
+def get_enabled_regions():
+    if CURRENT_REGION_LIMIT: return CURRENT_REGION_LIMIT
     try:
-        # EC2 Instances
-        ec2_response = ec2_client.describe_instances(
-            Filters=[{'Name': 'instance-state-name', 'Values': ['running']}]
+        ec2 = boto3.client('ec2', region_name='us-east-1')
+        return [r['RegionName'] for r in ec2.describe_regions()['Regions']]
+    except:
+        return ['us-east-1']
+
+def get_yesterday_cost():
+    """Get the confirmed billing amount for Yesterday"""
+    today = datetime.now(timezone.utc).date()
+    yesterday = today - timedelta(days=1)
+    try:
+        data = ce_client.get_cost_and_usage(
+            TimePeriod={'Start': yesterday.strftime('%Y-%m-%d'), 'End': today.strftime('%Y-%m-%d')},
+            Granularity='DAILY', Metrics=['UnblendedCost']
         )
-        for reservation in ec2_response['Reservations']:
-            for instance in reservation['Instances']:
-                name = 'Unnamed'
-                for tag in instance.get('Tags', []):
-                    if tag['Key'] == 'Name':
-                        name = tag['Value']
+        return float(data['ResultsByTime'][0]['Total']['UnblendedCost']['Amount'])
+    except:
+        return 0.0
+
+def get_live_status():
+    """
+    Scans all regions for running resources.
+    Calculates 'Today's Cost' using: (Hours since Midnight) * (Instance Price)
+    """
+    resources = []
+    total_hourly_burn = 0.0
+    today_estimated_cost = 0.0
+    
+    # Calculate hours elapsed since Midnight UTC
+    now_utc = datetime.now(timezone.utc)
+    midnight_utc = now_utc.replace(hour=0, minute=0, second=0, microsecond=0)
+    hours_since_midnight = (now_utc - midnight_utc).total_seconds() / 3600
+
+    regions = get_enabled_regions()
+
+    for region in regions:
+        try:
+            ec2 = boto3.client('ec2', region_name=region)
+            
+            # Scan EC2
+            instances = ec2.describe_instances(Filters=[{'Name': 'instance-state-name', 'Values': ['running']}])
+            for r in instances['Reservations']:
+                for i in r['Instances']:
+                    name = next((t['Value'] for t in i.get('Tags', []) if t['Key'] == 'Name'), 'Unnamed')
+                    itype = i['InstanceType']
+                    price = PRICING_DB.get(itype, 0.0) # Default to 0 if unknown
+                    
+                    # Cost logic: Price * Hours active today
+                    # (We assume it's been running all day for the "Today" estimate to be safe, 
+                    # or you could check LaunchTime for higher accuracy)
+                    cost_today = price * hours_since_midnight
+                    
+                    resources.append({
+                        'service': 'EC2',
+                        'name': name,
+                        'info': f"{itype} ({region})",
+                        'price': price,
+                        'cost_today': cost_today
+                    })
+                    total_hourly_burn += price
+                    today_estimated_cost += cost_today
+
+            # Scan RDS (Simplified for brevity)
+            rds = boto3.client('rds', region_name=region)
+            dbs = rds.describe_db_instances()
+            for db in dbs['DBInstances']:
+                dtype = db['DBInstanceClass']
+                price = PRICING_DB.get(dtype, 0.0)
+                cost_today = price * hours_since_midnight
                 
-                resources['ec2'].append({
-                    'name': name,
-                    'id': instance['InstanceId'],
-                    'type': instance['InstanceType'],
-                    'launch_time': instance['LaunchTime'],
-                    'free_tier': instance['InstanceType'] in ['t2.micro', 't3.micro']
+                resources.append({
+                    'service': 'RDS',
+                    'name': db['DBInstanceIdentifier'],
+                    'info': f"{dtype} ({region})",
+                    'price': price,
+                    'cost_today': cost_today
                 })
-    except Exception as e:
-        pass
-    
-    try:
-        # RDS Instances
-        rds_response = rds_client.describe_db_instances()
-        for db in rds_response['DBInstances']:
-            resources['rds'].append({
-                'name': db['DBInstanceIdentifier'],
-                'type': db['DBInstanceClass'],
-                'engine': db['Engine'],
-                'status': db['DBInstanceStatus'],
-                'free_tier': db['DBInstanceClass'] in ['db.t2.micro', 'db.t3.micro']
-            })
-    except Exception as e:
-        pass
-    
-    try:
-        # S3 Buckets
-        s3_response = s3_client.list_buckets()
-        for bucket in s3_response['Buckets']:
-            resources['s3'].append({
-                'name': bucket['Name'],
-                'created': bucket['CreationDate']
-            })
-    except Exception as e:
-        pass
-    
-    try:
-        # Lambda Functions
-        lambda_response = lambda_client.list_functions()
-        for func in lambda_response['Functions']:
-            resources['lambda'].append({
-                'name': func['FunctionName'],
-                'runtime': func['Runtime'],
-                'memory': func['MemorySize']
-            })
-    except Exception as e:
-        pass
-    
-    try:
-        # DynamoDB Tables
-        dynamodb_response = dynamodb_client.list_tables()
-        for table_name in dynamodb_response['TableNames']:
-            resources['dynamodb'].append({
-                'name': table_name
-            })
-    except Exception as e:
-        pass
-    
-    return resources
+                total_hourly_burn += price
+                today_estimated_cost += cost_today
 
-def get_service_costs_current_month():
-    """Get all service costs for current month"""
-    today = datetime.now(timezone.utc).date()
-    start_of_month = today.replace(day=1).strftime('%Y-%m-%d')
-    end = today.strftime('%Y-%m-%d')
+        except Exception:
+            continue
+            
+    return resources, total_hourly_burn, today_estimated_cost
+
+def make_layout():
+    layout = Layout(name="root")
+    layout.split(
+        Layout(name="header", size=3),
+        Layout(name="main", ratio=1),
+        Layout(name="footer", size=3)
+    )
+    layout["main"].split_row(
+        Layout(name="inventory", ratio=3),
+        Layout(name="analysis", ratio=2)
+    )
+    return layout
+
+def generate_dashboard(yesterday_cost):
+    layout = make_layout()
     
-    try:
-        response = ce_client.get_cost_and_usage(
-            TimePeriod={'Start': start_of_month, 'End': end},
-            Granularity='MONTHLY',
-            Metrics=['UnblendedCost'],
-            GroupBy=[{'Type': 'SERVICE'}]
+    # --- HEADER ---
+    title = Text("AWS COSTWATCH: SENTINEL", style="bold white on #005f00")
+    subtitle = Text(" Real-Time Instance Tracking & Daily Forecasting ", style="white on #005f00")
+    layout["header"].update(Panel(Align.center(Text.assemble(title, subtitle)), style="#005f00"))
+
+    # --- FETCH LIVE DATA ---
+    resources, hourly_burn, today_est = get_live_status()
+    
+    # --- FORECAST CALCULATION ---
+    # Forecast = (Cost So Far) + (Burn Rate * Hours Remaining in Day)
+    now_utc = datetime.now(timezone.utc)
+    hours_remaining = 24 - now_utc.hour
+    forecast_today = today_est + (hourly_burn * hours_remaining)
+    
+    # Diff vs Yesterday
+    diff = forecast_today - yesterday_cost
+    diff_color = "red" if diff > 0 else "green"
+    diff_symbol = "▲" if diff > 0 else "▼"
+
+    # --- LEFT PANEL: INVENTORY ---
+    inv_table = Table(expand=True, box=None, padding=(0,1))
+    inv_table.add_column("Service", style="cyan")
+    inv_table.add_column("Resource Name", style="bold white")
+    inv_table.add_column("Type/Region", style="dim")
+    inv_table.add_column("Cost Today", justify="right", style="yellow")
+    
+    for r in resources:
+        inv_table.add_row(
+            r['service'], 
+            r['name'], 
+            r['info'], 
+            f"${r['cost_today']:.3f}"
         )
-        
-        services = {}
-        if response['ResultsByTime'] and len(response['ResultsByTime']) > 0:
-            for group in response['ResultsByTime'][0].get('Groups', []):
-                service_name = group['Keys'][0]
-                cost = float(group['Metrics']['UnblendedCost']['Amount'])
-                services[service_name] = cost
-        
-        return services
-    except Exception as e:
-        return {}
-
-def get_daily_service_costs():
-    """Get yesterday's service costs"""
-    today = datetime.now(timezone.utc).date()
-    start = (today - timedelta(days=1)).strftime('%Y-%m-%d')
-    end = today.strftime('%Y-%m-%d')
     
-    try:
-        response = ce_client.get_cost_and_usage(
-            TimePeriod={'Start': start, 'End': end},
-            Granularity='DAILY',
-            Metrics=['UnblendedCost'],
-            GroupBy=[{'Type': 'SERVICE'}]
-        )
-        
-        services = []
-        if response['ResultsByTime'] and len(response['ResultsByTime']) > 0:
-            for group in response['ResultsByTime'][0].get('Groups', []):
-                service_name = group['Keys'][0]
-                cost = float(group['Metrics']['UnblendedCost']['Amount'])
-                if cost > 0.001:
-                    services.append((service_name, cost))
-        
-        services.sort(key=lambda x: x[1], reverse=True)
-        return services
-    except Exception as e:
-        return []
+    if not resources:
+        inv_table.add_row("-", "[dim]No active resources detected[/]", "-", "-")
 
-def get_monthly_total():
-    """Get month-to-date total"""
-    today = datetime.now(timezone.utc).date()
-    start_of_month = today.replace(day=1).strftime('%Y-%m-%d')
-    end = today.strftime('%Y-%m-%d')
+    layout["inventory"].update(
+        Panel(inv_table, title="[bold]LIVE RESOURCE TRACKER[/]", border_style="blue")
+    )
+
+    # --- RIGHT PANEL: ALERTS & FORECAST ---
     
-    try:
-        response = ce_client.get_cost_and_usage(
-            TimePeriod={'Start': start_of_month, 'End': end},
-            Granularity='MONTHLY',
-            Metrics=['UnblendedCost']
-        )
-        
-        if response['ResultsByTime']:
-            return float(response['ResultsByTime'][0]['Total']['UnblendedCost']['Amount'])
-        return 0.0
-    except Exception as e:
-        return 0.0
-
-def calculate_month_projection(monthly_cost):
-    """Project end-of-month cost"""
-    today = datetime.now(timezone.utc).date()
-    days_elapsed = today.day
-    days_in_month = (today.replace(day=28) + timedelta(days=4)).replace(day=1) - timedelta(days=1)
-    total_days = days_in_month.day
+    # 1. Today's Alert Box
+    today_text = Text()
+    today_text.append("Spent Since Midnight:\n", style="dim")
+    today_text.append(f"${today_est:.3f}\n", style="bold yellow size(16)")
+    today_text.append(f"Current Burn: ${hourly_burn:.3f}/hr", style="dim white")
     
-    if days_elapsed > 0:
-        daily_avg = monthly_cost / days_elapsed
-        projected = daily_avg * total_days
-        return projected, daily_avg
-    return 0, 0
+    today_panel = Panel(Align.center(today_text), title="[bold yellow]⚠ TODAY'S BILL[/]", border_style="yellow")
 
-def show_retro_dashboard():
+    # 2. Forecast Box
+    fc_text = Text()
+    fc_text.append("Forecast (End of Day):\n", style="dim")
+    fc_text.append(f"${forecast_today:.3f}\n", style="bold white size(16)")
+    fc_text.append(f"Vs Yesterday (${yesterday_cost:.2f}):\n", style="dim")
+    fc_text.append(f"{diff_symbol} ${abs(diff):.3f}", style=f"bold {diff_color}")
+    
+    fc_panel = Panel(Align.center(fc_text), title="[bold cyan]PREDICTION[/]", border_style="cyan")
+
+    # 3. Session Timer
+    elapsed = datetime.now(timezone.utc) - session_start_time
+    # Simplified session cost based on current burn
+    session_cost = hourly_burn * (elapsed.total_seconds() / 3600)
+    
+    alert_text = Text.from_markup(
+        f"[bold]Monitor Active:[/bold] {str(elapsed).split('.')[0]}\n"
+        f"[bold]Session Cost:[/bold] [red]${session_cost:.4f}[/]"
+    )
+    alert_panel = Panel(alert_text, title="SESSION ALERT", border_style="white")
+
+    # Combine Right Panel
+    analysis_layout = Layout()
+    analysis_layout.split(
+        Layout(today_panel, ratio=1),
+        Layout(fc_panel, ratio=1),
+        Layout(alert_panel, size=4)
+    )
+    layout["analysis"].update(analysis_layout)
+
+    # --- FOOTER ---
+    layout["footer"].update(Panel(f"Scanning All Regions | Last Update: {datetime.now().strftime('%H:%M:%S')} | Prices are estimates", style="dim"))
+
+    return layout
+
+if __name__ == "__main__":
     console = Console()
     console.clear()
     
-    # Header
-    header = """
-    ╔═══════════════════════════════════════════════════════════════════════╗
-    ║                                                                       ║
-    ║     █████╗ ██╗    ██╗███████╗     ██████╗ ██████╗ ███████╗████████╗ ║
-    ║    ██╔══██╗██║    ██║██╔════╝    ██╔════╝██╔═══██╗██╔════╝╚══██╔══╝ ║
-    ║    ███████║██║ █╗ ██║███████╗    ██║     ██║   ██║███████╗   ██║    ║
-    ║    ██╔══██║██║███╗██║╚════██║    ██║     ██║   ██║╚════██║   ██║    ║
-    ║    ██║  ██║╚███╔███╔╝███████║    ╚██████╗╚██████╔╝███████║   ██║    ║
-    ║    ╚═╝  ╚═╝ ╚══╝╚══╝ ╚══════╝     ╚═════╝ ╚═════╝ ╚══════╝   ╚═╝    ║
-    ║                                                                       ║
-    ║               W A T C H   S Y S T E M   v2.0                         ║
-    ║               [ DevOps Free Tier Monitor ]                           ║
-    ╚═══════════════════════════════════════════════════════════════════════╝
-    """
-    console.print(header, style="bold green")
-    console.print()
+    # Initial fetch of yesterday's historical data (only needs to happen once)
+    console.print("[yellow]Fetching historical data...[/]")
+    yesterday_cost = get_yesterday_cost()
     
-    # Loading animation
-    console.print("    [bold yellow]>>> SCANNING AWS ACCOUNT...[/bold yellow]", end="")
-    time.sleep(0.3)
-    console.print(" [bold green]OK[/bold green]")
-    
-    console.print("    [bold yellow]>>> CHECKING FREE TIER STATUS...[/bold yellow]", end="")
-    resources = get_running_resources()
-    service_costs = get_service_costs_current_month()
-    time.sleep(0.3)
-    console.print(" [bold green]OK[/bold green]")
-    
-    console.print("    [bold yellow]>>> CALCULATING PROJECTIONS...[/bold yellow]", end="")
-    monthly_total = get_monthly_total()
-    projected, daily_avg = calculate_month_projection(monthly_total)
-    time.sleep(0.3)
-    console.print(" [bold green]OK[/bold green]")
-    
-    console.print()
-    console.print("    " + "─" * 71)
-    console.print()
-    
-    # Cost Summary
-    console.print("    ╔═══════════════════════════════════════════════════════════════════╗")
-    console.print("    ║                [bold yellow]💰 COST SUMMARY - ALERT SYSTEM 💰[/bold yellow]              ║")
-    console.print("    ╠═══════════════════════════════════════════════════════════════════╣")
-    console.print(f"    ║                                                                   ║")
-    console.print(f"    ║  Month-to-Date:          [cyan]${monthly_total:>10.2f}[/cyan]                       ║")
-    console.print(f"    ║  Daily Average:          [yellow]${daily_avg:>10.2f}[/yellow]                       ║")
-    console.print(f"    ║  Projected Month-End:    [bold {'red' if projected > 10 else 'green'}]${projected:>10.2f}[/bold {'red' if projected > 10 else 'green'}]                       ║")
-    console.print(f"    ║                                                                   ║")
-    
-    if projected > 10:
-        console.print("    ║  [bold red blink]⚠ WARNING: EXCEEDING FREE TIER! ⚠[/bold red blink]                    ║")
-    else:
-        console.print("    ║  [bold green]✓ WITHIN SAFE LIMITS[/bold green]                                      ║")
-    
-    console.print("    ╚═══════════════════════════════════════════════════════════════════╝")
-    console.print()
-    
-    # Active Resources by Service
-    console.print("    ╔═══════════════════════════════════════════════════════════════════╗")
-    console.print("    ║            [bold cyan]🖥️  ACTIVE RESOURCES BY SERVICE 🖥️[/bold cyan]                ║")
-    console.print("    ╠═══════════════════════════════════════════════════════════════════╣")
-    
-    # EC2
-    if resources['ec2']:
-        console.print(f"    ║                                                                   ║")
-        console.print(f"    ║  [bold white]EC2 INSTANCES:[/bold white] {len(resources['ec2'])} running                               ║")
-        for ec2 in resources['ec2']:
-            tier_status = "[green]FREE TIER ✓[/green]" if ec2['free_tier'] else "[red]PAID[/red]"
-            console.print(f"    ║    • {ec2['name'][:20]:20} {ec2['type']:12} {tier_status}  ║")
-    
-    # RDS
-    if resources['rds']:
-        console.print(f"    ║                                                                   ║")
-        console.print(f"    ║  [bold white]RDS DATABASES:[/bold white] {len(resources['rds'])} active                               ║")
-        for rds in resources['rds']:
-            tier_status = "[green]FREE TIER ✓[/green]" if rds['free_tier'] else "[red]PAID[/red]"
-            console.print(f"    ║    • {rds['name'][:20]:20} {rds['type']:12} {tier_status}  ║")
-    
-    # S3
-    if resources['s3']:
-        console.print(f"    ║                                                                   ║")
-        console.print(f"    ║  [bold white]S3 BUCKETS:[/bold white] {len(resources['s3'])} buckets                                  ║")
-        for s3 in resources['s3'][:3]:
-            console.print(f"    ║    • {s3['name'][:50]:50}            ║")
-    
-    # Lambda
-    if resources['lambda']:
-        console.print(f"    ║                                                                   ║")
-        console.print(f"    ║  [bold white]LAMBDA FUNCTIONS:[/bold white] {len(resources['lambda'])} functions                        ║")
-    
-    # DynamoDB
-    if resources['dynamodb']:
-        console.print(f"    ║                                                                   ║")
-        console.print(f"    ║  [bold white]DYNAMODB TABLES:[/bold white] {len(resources['dynamodb'])} tables                            ║")
-    
-    if not any(resources.values()):
-        console.print("    ║              [bold green]>>> NO ACTIVE RESOURCES <<<[/bold green]                    ║")
-    
-    console.print("    ╚═══════════════════════════════════════════════════════════════════╝")
-    console.print()
-    
-    # Service Costs & Free Tier Status
-    console.print("    ╔═══════════════════════════════════════════════════════════════════╗")
-    console.print("    ║         [bold magenta]📊 SERVICE COSTS & FREE TIER STATUS 📊[/bold magenta]             ║")
-    console.print("    ╠═══════════════════════════════════════════════════════════════════╣")
-    
-    if service_costs:
-        sorted_services = sorted(service_costs.items(), key=lambda x: x[1], reverse=True)
-        
-        for service, cost in sorted_services[:10]:
-            if cost > 0.01:
-                # Check if service has free tier
-                free_tier_info = FREE_TIER_LIMITS.get(service, {})
-                short_name = free_tier_info.get('name', service[:20])
-                
-                # Determine status
-                if cost > 1.0:
-                    status = "[bold red]EXCEEDING[/bold red]"
-                elif cost > 0.10:
-                    status = "[yellow]CAUTION[/yellow]"
-                else:
-                    status = "[green]OK[/green]"
-                
-                console.print(f"    ║ {short_name[:25]:25} │ ${cost:>7.2f} │ {status:11} ║")
-                
-                if free_tier_info:
-                    console.print(f"    ║   [dim]{free_tier_info['description'][:50]:50}[/dim]  ║")
-    else:
-        console.print("    ║               [dim]No charges detected this month[/dim]               ║")
-    
-    console.print("    ╚═══════════════════════════════════════════════════════════════════╝")
-    console.print()
-    
-    # Recommendations
-    console.print("    ╔═══════════════════════════════════════════════════════════════════╗")
-    console.print("    ║                  [bold green]💡 RECOMMENDATIONS 💡[/bold green]                       ║")
-    console.print("    ╠═══════════════════════════════════════════════════════════════════╣")
-    
-    recommendations = []
-    
-    # Check for non-free tier EC2
-    non_free_ec2 = [ec2 for ec2 in resources['ec2'] if not ec2['free_tier']]
-    if non_free_ec2:
-        recommendations.append("⚠ You have non-free tier EC2 instances running!")
-        recommendations.append(f"  Consider switching to t2.micro or t3.micro")
-    
-    # Check for RDS
-    if resources['rds']:
-        recommendations.append("⚠ RDS can be expensive! Monitor usage carefully")
-    
-    # Check if monthly cost > $5
-    if projected > 5:
-        recommendations.append("⚠ Projected cost exceeds typical free tier usage")
-        recommendations.append("  Review and terminate unused resources")
-    
-    if not recommendations:
-        recommendations.append("✓ All systems optimal! Continue monitoring.")
-    
-    for rec in recommendations:
-        console.print(f"    ║ {rec[:65]:65} ║")
-    
-    console.print("    ╚═══════════════════════════════════════════════════════════════════╝")
-    console.print()
-    
-    # Footer
-    timestamp = datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')
-    console.print(f"    [dim]>>> LAST UPDATE: {timestamp}[/dim]")
-    console.print(f"    [dim]>>> MONITORING ALL AWS SERVICES | FREE TIER TRACKING ACTIVE[/dim]")
-    console.print()
-
-if __name__ == "__main__":
-    show_retro_dashboard()
+    with Live(generate_dashboard(yesterday_cost), refresh_per_second=1, screen=True) as live:
+        while True:
+            live.update(generate_dashboard(yesterday_cost))
+            time.sleep(REFRESH_RATE)

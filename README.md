@@ -1,4 +1,4 @@
-#### AWS CostWatch - Real-Time AWS Resource & Cost Monitor
+## AWS CostWatch - Real-Time AWS Resource & Cost Monitor
 
 
 ## 🚀 Overview

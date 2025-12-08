@@ -1,4 +1,4 @@
-AWS CostWatch - Real-Time AWS Resource & Cost Monitor
+##AWS CostWatch - Real-Time AWS Resource & Cost Monitor
 
 
 🚀 Overview
@@ -7,34 +7,34 @@ AWS CostWatch is a real-time dashboard that monitors your AWS resources, tracks 
 ## 🎯 Purpose
 AWS CostWatch was created to help **AWS learners, DevOps beginners, and cloud enthusiasts** understand their real-time resource usage and avoid unexpected bills.  
 
-✨ Features
-📊 Real-Time Monitoring
+##✨ Features
+##📊 Real-Time Monitoring
 EC2 Instances: Monitor running/stopped instances, uptime, and costs
 S3 Buckets: Track bucket creation dates, regions, and storage costs
 RDS Databases: Monitor database instances and costs
 Lambda Functions: Track function counts and execution estimates
 CloudWatch Alarms: Monitor alarm states and metrics
 
-💰 Cost Tracking
+##💰 Cost Tracking
 Real-time cost estimates using AWS pricing
 Free tier usage tracking (750 hours for EC2/RDS)
 Projected monthly and yearly cost estimates
 Lifetime cost calculations for each resource
 
-🚨 Alert System
+##🚨 Alert System
 High-cost alerts when spending exceeds thresholds
 
 Free tier usage warnings
 Resource state monitoring
 Multi-level alerts (Critical/Warning/Info)
 
-📈 Dashboard Features
+##📈 Dashboard Features
 Live auto-refresh every 60 seconds
 Multi-region scanning (us-east-1, us-east-2, us-west-1, etc.)
 Progress bars for free tier usage
 Detailed resource breakdowns
 
-🛠️ Installation
+##🛠️ Installation
 Prerequisites
 Python 3.8 or higher
 

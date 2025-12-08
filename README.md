@@ -1,7 +1,7 @@
-##### AWS CostWatch - Real-Time AWS Resource & Cost Monitor
+#### AWS CostWatch - Real-Time AWS Resource & Cost Monitor
 
 
-🚀 Overview
+## 🚀 Overview
 AWS CostWatch is a real-time dashboard that monitors your AWS resources, tracks free tier usage, and provides cost estimates without requiring AWS Cost Explorer. It provides immediate visibility into your AWS spending and resource utilization.
 
 ## 🎯 Purpose

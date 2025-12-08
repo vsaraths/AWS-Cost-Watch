@@ -1,4 +1,4 @@
-##AWS CostWatch - Real-Time AWS Resource & Cost Monitor
+##### AWS CostWatch - Real-Time AWS Resource & Cost Monitor
 
 
 🚀 Overview
@@ -7,34 +7,34 @@ AWS CostWatch is a real-time dashboard that monitors your AWS resources, tracks 
 ## 🎯 Purpose
 AWS CostWatch was created to help **AWS learners, DevOps beginners, and cloud enthusiasts** understand their real-time resource usage and avoid unexpected bills.  
 
-##✨ Features
-##📊 Real-Time Monitoring
+## ✨ Features
+## 📊 Real-Time Monitoring
 EC2 Instances: Monitor running/stopped instances, uptime, and costs
 S3 Buckets: Track bucket creation dates, regions, and storage costs
 RDS Databases: Monitor database instances and costs
 Lambda Functions: Track function counts and execution estimates
 CloudWatch Alarms: Monitor alarm states and metrics
 
-##💰 Cost Tracking
+## 💰 Cost Tracking
 Real-time cost estimates using AWS pricing
 Free tier usage tracking (750 hours for EC2/RDS)
 Projected monthly and yearly cost estimates
 Lifetime cost calculations for each resource
 
-##🚨 Alert System
+## 🚨 Alert System
 High-cost alerts when spending exceeds thresholds
 
 Free tier usage warnings
 Resource state monitoring
 Multi-level alerts (Critical/Warning/Info)
 
-##📈 Dashboard Features
+## 📈 Dashboard Features
 Live auto-refresh every 60 seconds
 Multi-region scanning (us-east-1, us-east-2, us-west-1, etc.)
 Progress bars for free tier usage
 Detailed resource breakdowns
 
-##🛠️ Installation
+## 🛠️ Installation
 Prerequisites
 Python 3.8 or higher
 
@@ -42,21 +42,21 @@ AWS Account with IAM credentials
 
 AWS CLI configured
 
-Step 1: Clone the Repository
+## Step 1: Clone the Repository
 
 git clone https://github.com/vsaraths/AWS-Cost-Watch.git
 cd AWS-Cost-Watch
-Step 2: Install Dependencies
 
+## Step 2: Install Dependencies
 pip install -r requirements.txt
 
-Required Packages:
+## Required Packages:
 
 boto3 - AWS SDK for Python
 rich - Terminal formatting and dashboard UI
 botocore - AWS CLI core library
 
-Step 3: Configure AWS Credentials
+## Step 3: Configure AWS Credentials
 
 aws configure
 Enter your:
@@ -66,7 +66,7 @@ AWS Secret Access Key
 Default region (e.g., us-east-1)
 Default output format (e.g., json)
 
-Step 4: Run the Dashboard
+## Step 4: Run the Dashboard
 
 python aws_cost_dashboard.py
 🔧 IAM Permissions Required
@@ -96,7 +96,7 @@ json
         }
     ]
 }
-📁 Project Structure
+## 📁 Project Structure
 text
 AWS-Cost-Watch/
 ├── aws_cost_dashboard.py     # Main dashboard application
@@ -104,26 +104,26 @@ AWS-Cost-Watch/
 ├── README.md                # This file
 ├── LICENSE                  # MIT License
 └── screenshots/             # Dashboard screenshots
-🎯 Usage
+## 🎯 Usage
 Starting the Dashboard
 
 python aws_cost_dashboard.py
 Dashboard Components
 Header: AWS CostWatch title and version
 
-Cost Estimates: Real-time cost projections
+## Cost Estimates: Real-time cost projections
 Resources: Active resource counts
 EC2 Instances: Detailed instance information
 S3 Buckets: Bucket details and costs
 Status Panel: System and AWS status
 Footer: Update timestamp and controls
 
-Controls
+## Controls
 Auto-refresh: Updates every 60 seconds
 
 Exit: Press Ctrl+C to exit the dashboard
 
-🔍 How It Works
+## 🔍 How It Works
 Cost Estimation
 Uses AWS published pricing for each service
 
@@ -145,13 +145,13 @@ Automatically discovers enabled regions
 Scans multiple regions simultaneously
 Aggregates data from all regions
 
-🚨 Alerts and Warnings
+## 🚨 Alerts and Warnings
 Cost Alerts
 Red: Monthly cost > $100
 Yellow: Monthly cost > $50
 Green: Monthly cost < $50
 
-Free Tier Alerts
+## Free Tier Alerts
 Red: >95% of free tier used
 Yellow: >80% of free tier used
 Green: <80% of free tier used
@@ -160,7 +160,7 @@ Zombie EBS volumes (unattached)
 Orphaned Elastic IPs
 Non-free tier instances running
 
-📊 Sample Output
+## 📊 Sample Output
 
 AWS CostWatch - Real-Time Dashboard
 
@@ -179,27 +179,27 @@ AWS CostWatch - Real-Time Dashboard
 ├── web-server-1 | t3.micro | running 45d | $14.85
 ├── db-backup-1 | t2.micro | running 30d | $9.89
 └── test-instance | m5.large | stopped 5d | $12.50
-🔄 Refresh Schedule
+## 🔄 Refresh Schedule
 Full scan: Every 60 seconds
 
 Data types: All AWS resources
 Regions: All enabled AWS regions
 Cost updates: Real-time calculations
 
-🛡️ Security
+## 🛡️ Security
 Data Privacy
 No data leaves your local machine
 All calculations done locally
 AWS credentials never transmitted
 Only read-only API calls made
 
-Best Practices
+## Best Practices
 Use IAM roles with minimal permissions
 Regularly rotate AWS credentials
 Monitor dashboard usage
 Review cost alerts promptly
 
-🚀 Performance
+## 🚀 Performance
 Optimization Features
 Regional client caching
 Intelligent error handling
@@ -207,14 +207,14 @@ Parallel region scanning
 Progress tracking
 Memory-efficient data structures
 
-System Requirements
+## System Requirements
 CPU: Minimal (single-threaded)
 
-Memory: <100MB
+## Memory: <100MB
 Network: Broadband internet
 Storage: <10MB
 
-📈 Future Enhancements
+## 📈 Future Enhancements
 Planned Features
 Cost Explorer integration (when enabled)
 
@@ -226,13 +226,13 @@ Email/Slack notifications
 Web dashboard interface
 Multi-account support
 
-Current Limitations
+## Current Limitations
 Estimated costs (not actual billing)
 No VPC flow log analysis
 Limited CloudWatch metric integration
 No support for AWS Organizations
 
-🤝 Contributing
+## 🤝 Contributing
 How to Contribute
 Fork the repository
 
@@ -258,36 +258,36 @@ Use type hints where possible
 Add docstrings for functions
 Include error handling
 
-🐛 Troubleshooting
+##🐛 Troubleshooting
 Common Issues
 1. AWS Credentials Error
 text
 Error: Unable to locate credentials
 Solution: Run aws configure and enter valid credentials.
 
-2. Permission Denied
+## 2. Permission Denied
 text
 ClientError: An error occurred (UnauthorizedOperation)...
 Solution: Ensure IAM user has required permissions.
 
-3. No Data Showing
+## 3. No Data Showing
 text
 No resources found
 Solution: Check if you have resources in the scanned regions.
 
-4. Cost Explorer Not Enabled
+## 4. Cost Explorer Not Enabled
 text
 Cost Explorer API not enabled
 Solution: This is expected. The dashboard uses estimated costs.
 
-Debug Mode
+## Debug Mode
 For detailed logging, add debug prints in the code:
 
-python
+## python
 # Enable debug output
 import logging
 logging.basicConfig(level=logging.DEBUG)
-📚 Documentation
+##📚 Documentation
 API Reference
 The dashboard uses these AWS API calls:
 
@@ -305,17 +305,15 @@ RDS Pricing
 S3 Pricing
 Lambda Pricing
 
-📄 License
-MIT License - See LICENSE file for details.
+## 📄 License
+## MIT License - See LICENSE file for details.
 
-🙏 Acknowledgments
+## 🙏 Acknowledgments
 AWS Boto3 Team - Python AWS SDK
-
 Rich Library - Beautiful terminal formatting
-
 AWS Free Tier - Cost monitoring target
 
-📞 Support
+## 📞 Support
 Issues and Questions
 GitHub Issues: Create an issue
 
@@ -324,7 +322,7 @@ Email: vsarath732@gmail.com
 Feature Requests
 Submit feature requests through GitHub Issues with the "enhancement" label.
 
-🌟 Star History
+## 🌟 Star History
 If you find this project useful, please give it a star! ⭐
 
 Made with ❤️ for the AWS Community

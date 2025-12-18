@@ -1,0 +1,10 @@
+# Ignore AWS CostWatch generated files
+aws_costwatch.db
+aws_costwatch.log
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.env
+.venv
+.envrc

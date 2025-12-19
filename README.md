@@ -74,6 +74,9 @@ pip install boto3 rich sqlite-utils
 🚀 Run the dashboard
 python3 aws_costwatch_v8.py
 
+bash
+Copy code
+python3 aws_costwatch_v8.py
 
 It will:
 
@@ -104,6 +107,27 @@ You can query it manually:
 sqlite3 aws_costwatch.db "SELECT * FROM scans ORDER BY id DESC LIMIT 5;"
 
 🧠 FinOps Best Practices Supported
+Section	Description
+💰 Cost Summary	Current, daily, and projected monthly costs.
+🖥️ Active Resources	Running EC2, RDS, and Lambda instances with daily cost.
+💤 Idle Resources	Resources with low CPU/network activity (potential waste).
+📦 Snapshot Cleanup	Orphaned or old EBS snapshots.
+🌍 Data Transfer Matrix	Inter-region and internet egress costs.
+📊 Service Breakdown	Top 10 services by cost.
+⚡ Status Panel	Account, region count, next scan time, and overall health.
+
+🗃️ Data Storage
+All scans are stored locally in an SQLite database:
+
+Copy code
+aws_costwatch.db
+You can query it manually:
+
+bash
+Copy code
+sqlite3 aws_costwatch.db "SELECT * FROM scans ORDER BY id DESC LIMIT 5;"
+
+🧠 FinOps Best Practices Supported
 
 ✅ Detect and clean up idle resources
 ✅ Estimate cross-region transfer costs
@@ -116,6 +140,7 @@ Version Date  Highlights
 v8.1  2025-12-18  Added daily cost panel, idle resource estimator, EBS cleanup, and transfer matrix
 v8.0  2025-12-10  Real-time dashboard, SQLite persistence, budget support
 v7.x  2025-11 Early costwatch prototypes
+
 🧰 Tech Stack
 Component Purpose
 Python (boto3)  AWS API integration
@@ -123,6 +148,7 @@ Rich  Terminal dashboard UI
 SQLite3 Local persistence
 CloudWatch / Cost Explorer  Metrics and cost data
 AWS Budgets API Budget tracking
+
 🧑‍💻 Author
 
 👤 Sarath V
@@ -146,9 +172,14 @@ git commit -m "Add new feature"
 git push origin feature/my-new-feature
 
 🌟 Support
+Version	Date	Highlights
+v8.1	2025-12-18	Added daily cost panel, idle resource estimator, EBS cleanup, and transfer matrix
+v8.0	2025-12-10	Real-time dashboard, SQLite persistence, budget support
+v7.x	2025-11	Early costwatch prototypes
 
 If you find this project useful, please ⭐ it on GitHub and share it with other FinOps engineers!
 Together we can make AWS cost visibility easy and automated.
 
 “You can’t optimize what you don’t measure. CostWatch helps you measure precisely.”
+
 — Sarath V

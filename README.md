@@ -1,330 +1,185 @@
-## AWS CostWatch - Real-Time AWS Resource & Cost Monitor
-
-
-## 🚀 Overview
-AWS CostWatch is a real-time dashboard that monitors your AWS resources, tracks free tier usage, and provides cost estimates without requiring AWS Cost Explorer. It provides immediate visibility into your AWS spending and resource utilization.
-
-## 🎯 Purpose
-AWS CostWatch was created to help **AWS learners, DevOps beginners, and cloud enthusiasts** understand their real-time resource usage and avoid unexpected bills.  
-
-## ✨ Features
-## 📊 Real-Time Monitoring
-EC2 Instances: Monitor running/stopped instances, uptime, and costs
-S3 Buckets: Track bucket creation dates, regions, and storage costs
-RDS Databases: Monitor database instances and costs
-Lambda Functions: Track function counts and execution estimates
-CloudWatch Alarms: Monitor alarm states and metrics
-
-## 💰 Cost Tracking
-Real-time cost estimates using AWS pricing
-Free tier usage tracking (750 hours for EC2/RDS)
-Projected monthly and yearly cost estimates
-Lifetime cost calculations for each resource
-
-## 🚨 Alert System
-High-cost alerts when spending exceeds thresholds
-
-Free tier usage warnings
-Resource state monitoring
-Multi-level alerts (Critical/Warning/Info)
-
-## 📈 Dashboard Features
-Live auto-refresh every 60 seconds
-Multi-region scanning (us-east-1, us-east-2, us-west-1, etc.)
-Progress bars for free tier usage
-Detailed resource breakdowns
-
-## 🛠️ Installation
-Prerequisites
-Python 3.8 or higher
-
-AWS Account with IAM credentials
-
-AWS CLI configured
-
-## Step 1: Clone the Repository
-
-git clone https://github.com/vsaraths/AWS-Cost-Watch.git
-cd AWS-Cost-Watch
-
-## Step 2: Install Dependencies
-pip install -r requirements.txt
-
-## Required Packages:
-
-boto3 - AWS SDK for Python
-rich - Terminal formatting and dashboard UI
-botocore - AWS CLI core library
-
-## Step 3: Configure AWS Credentials
-
-aws configure
-Enter your:
-
-AWS Access Key ID
-AWS Secret Access Key
-Default region (e.g., us-east-1)
-Default output format (e.g., json)
-
-## Step 4: Run the Dashboard
-
-python aws_cost_dashboard.py
-🔧 IAM Permissions Required
-Create an IAM policy with the following permissions:
-
-json
-{
-    "Version": "2012-10-17",
-    "Statement": [
-        {
-            "Sid": "CostWatchPermissions",
-            "Effect": "Allow",
-            "Action": [
-                "ec2:DescribeInstances",
-                "ec2:DescribeRegions",
-                "ec2:DescribeVolumes",
-                "ec2:DescribeAddresses",
-                "ec2:DescribeNatGateways",
-                "s3:ListBuckets",
-                "s3:GetBucketLocation",
-                "rds:DescribeDBInstances",
-                "lambda:ListFunctions",
-                "cloudwatch:DescribeAlarms",
-                "sts:GetCallerIdentity"
-            ],
-            "Resource": "*"
-        }
-    ]
-}
-## 📁 Project Structure
-text
-AWS-Cost-Watch/
-├── aws_cost_dashboard.py     # Main dashboard application
-├── requirements.txt          # Python dependencies
-├── README.md                # This file
-├── LICENSE                  # MIT License
-└── screenshots/             # Dashboard screenshots
-## 🎯 Usage
-Starting the Dashboard
-
-python aws_cost_dashboard.py
-Dashboard Components
-Header: AWS CostWatch title and version
-
-## Cost Estimates: Real-time cost projections
-Resources: Active resource counts
-EC2 Instances: Detailed instance information
-S3 Buckets: Bucket details and costs
-Status Panel: System and AWS status
-Footer: Update timestamp and controls
-
-## Controls
-Auto-refresh: Updates every 60 seconds
-
-Exit: Press Ctrl+C to exit the dashboard
-
-## 🔍 How It Works
-Cost Estimation
-Uses AWS published pricing for each service
-
-Calculates costs based on:
-Instance type (EC2/RDS)
-Uptime (hours running)
-Storage size (S3/EBS)
-Function counts (Lambda)
-Projects monthly costs based on current usage patterns
-
-Free Tier Tracking
-Tracks t2/t3.micro instances for EC2
-Tracks db.t2/t3.micro instances for RDS
-Monitors 750-hour monthly limit
-Shows percentage usage with progress bars
-
-Multi-Region Support
-Automatically discovers enabled regions
-Scans multiple regions simultaneously
-Aggregates data from all regions
-
-## 🚨 Alerts and Warnings
-Cost Alerts
-Red: Monthly cost > $100
-Yellow: Monthly cost > $50
-Green: Monthly cost < $50
-
-## Free Tier Alerts
-Red: >95% of free tier used
-Yellow: >80% of free tier used
-Green: <80% of free tier used
-Resource Alerts
-Zombie EBS volumes (unattached)
-Orphaned Elastic IPs
-Non-free tier instances running
-
-## 📊 Sample Output
-
-AWS CostWatch - Real-Time Dashboard
-
-💰 COST ESTIMATES
-├── Current Hourly: $0.035/hr
-├── Projected Daily: $0.84/day
-└── Projected Monthly: $25.20/month
-
-📊 RESOURCES
-├── 🖥️ EC2: 3 running (5 total)
-├── 🗄️ RDS: 1 running (1 total)
-├── 📦 S3: 12 buckets
-└── λ Lambda: 8 functions
-
-🖥️ EC2 INSTANCES
-├── web-server-1 | t3.micro | running 45d | $14.85
-├── db-backup-1 | t2.micro | running 30d | $9.89
-└── test-instance | m5.large | stopped 5d | $12.50
-## 🔄 Refresh Schedule
-Full scan: Every 60 seconds
-
-Data types: All AWS resources
-Regions: All enabled AWS regions
-Cost updates: Real-time calculations
-
-## 🛡️ Security
-Data Privacy
-No data leaves your local machine
-All calculations done locally
-AWS credentials never transmitted
-Only read-only API calls made
-
-## Best Practices
-Use IAM roles with minimal permissions
-Regularly rotate AWS credentials
-Monitor dashboard usage
-Review cost alerts promptly
-
-## 🚀 Performance
-Optimization Features
-Regional client caching
-Intelligent error handling
-Parallel region scanning
-Progress tracking
-Memory-efficient data structures
-
-## System Requirements
-CPU: Minimal (single-threaded)
-
-## Memory: <100MB
-Network: Broadband internet
-Storage: <10MB
-
-## 📈 Future Enhancements
-Planned Features
-Cost Explorer integration (when enabled)
-
-EBS volume size tracking
-Data transfer cost calculations
-Cost-saving recommendations
-Historical cost trending
-Email/Slack notifications
-Web dashboard interface
-Multi-account support
-
-## Current Limitations
-Estimated costs (not actual billing)
-No VPC flow log analysis
-Limited CloudWatch metric integration
-No support for AWS Organizations
-
-## 🤝 Contributing
-How to Contribute
-Fork the repository
-
-Create a feature branch
-
-Make your changes
-Submit a pull request
-Development Setup
-
-# Clone your fork
-git clone https://github.com/YOUR-USERNAME/AWS-Cost-Watch.git
-
-# Create virtual environment
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-
-# Install development dependencies
-pip install -r requirements.txt
-Code Style
-Follow PEP 8 guidelines
-
-Use type hints where possible
-Add docstrings for functions
-Include error handling
-
-##🐛 Troubleshooting
-Common Issues
-1. AWS Credentials Error
-text
-Error: Unable to locate credentials
-Solution: Run aws configure and enter valid credentials.
-
-## 2. Permission Denied
-text
-ClientError: An error occurred (UnauthorizedOperation)...
-Solution: Ensure IAM user has required permissions.
-
-## 3. No Data Showing
-text
-No resources found
-Solution: Check if you have resources in the scanned regions.
-
-## 4. Cost Explorer Not Enabled
-text
-Cost Explorer API not enabled
-Solution: This is expected. The dashboard uses estimated costs.
-
-## Debug Mode
-For detailed logging, add debug prints in the code:
-
-## python
-# Enable debug output
-import logging
-logging.basicConfig(level=logging.DEBUG)
-##📚 Documentation
-API Reference
-The dashboard uses these AWS API calls:
-
-describe_instances() - Get EC2 instances
-list_buckets() - Get S3 buckets
-describe_db_instances() - Get RDS instances
-list_functions() - Get Lambda functions
-describe_alarms() - Get CloudWatch alarms
-
-Pricing Reference
-Uses AWS On-Demand pricing for:
-
-EC2 Pricing
-RDS Pricing
-S3 Pricing
-Lambda Pricing
-
-## 📄 License
-## MIT License - See LICENSE file for details.
-
-## 🙏 Acknowledgments
-AWS Boto3 Team - Python AWS SDK
-Rich Library - Beautiful terminal formatting
-AWS Free Tier - Cost monitoring target
-
-## 📞 Support
-Issues and Questions
-GitHub Issues: Create an issue
-
-Email: vsarath732@gmail.com
-
-Feature Requests
-Submit feature requests through GitHub Issues with the "enhancement" label.
-
-## 🌟 Star History
-If you find this project useful, please give it a star! ⭐
-
-Made with ❤️ for the AWS Community
-
-Monitor your cloud costs before they monitor you!
+# 🟢 AWS CostWatch v8.1 – DevOps + FinOps Dashboard  
+
+![Python](https://img.shields.io/badge/Python-3.10%2B-blue.svg)
+![AWS](https://img.shields.io/badge/AWS-Boto3-orange.svg)
+![Version](https://img.shields.io/badge/Version-v8.1-green.svg)
+![License](https://img.shields.io/badge/License-MIT-lightgrey.svg)
+![Status](https://img.shields.io/badge/Status-Stable-success.svg)
+
+---
+
+## 📘 Overview  
+
+**AWS CostWatch v8.1** is a real-time **AWS cost and resource monitoring dashboard** built for DevOps & FinOps engineers.  
+It visualizes AWS resource utilization, spending, and inefficiencies using a **terminal-based live dashboard** (powered by `rich`).  
+
+The tool helps teams **monitor costs**, **detect idle or orphaned resources**, and **understand data transfer patterns** —  
+all in one clean, classic green command-line interface.  
+
+---
+
+## 🧩 Key Features  
+
+### 💵 FinOps Insights
+- **Per-Instance Daily Cost Panel** – Shows daily cost of every running EC2, RDS, and Lambda resource.  
+- **Service Cost Breakdown** – Visualize cost by AWS service via Cost Explorer.  
+- **Budget Overview** – Pulls budget usage from AWS Budgets API.  
+
+### 💤 Optimization Detection
+- **Idle Resource Estimator** – Detects EC2/RDS instances with CPU < 5% using CloudWatch metrics.  
+- **Zombie Resource Detection** – Finds unused or stopped resources consuming costs.  
+- **Ephemeral Resource Tracking** – Detects resources that were spun up and deleted quickly.  
+
+### 📦 Storage & Data
+- **EBS Snapshot Cleanup** – Lists orphaned and old snapshots (age > 30 days).  
+- **S3 Cost Estimation** – Estimates cost for all S3 buckets based on usage tiers.  
+
+### 🌍 Network & Transfer Costs
+- **Detailed Data Transfer Matrix** – Breaks down *North–South* (internet) and *East–West* (inter-region) costs.  
+- **Regional Matrix View** – Visualize which regions exchange the most traffic.  
+
+### ⚡ Live Dashboard
+- Built with the [`rich`](https://github.com/Textualize/rich) library.  
+- **Auto-refreshes every 10 minutes** (configurable).  
+- SQLite-based cost history for 7-scan trend charts.  
+- Classic green-themed terminal UI.  
+
+---
+
+## 🖼️ Dashboard Preview  
+
+*(Add a screenshot here — example placeholder below)*  
+![AWS CostWatch v8.1 Dashboard](assets/dashboard_preview.png)
+
+---
+
+## ⚙️ Setup  
+
+### 🧱 Requirements  
+- Python 3.9 or later  
+- AWS CLI configured with valid credentials  
+- IAM permissions for:
+  - `ec2:Describe*`
+  - `rds:Describe*`
+  - `s3:ListAllMyBuckets`
+  - `lambda:ListFunctions`
+  - `cloudwatch:GetMetricStatistics`
+  - `ce:GetCostAndUsage`
+  - `budgets:DescribeBudgets`
+  - `cloudtrail:LookupEvents`
+
+### 📦 Install dependencies  
+```bash
+pip install boto3 rich sqlite-utils
+🚀 Run the dashboard
+python3 aws_costwatch_v8.py
+
+bash
+Copy code
+python3 aws_costwatch_v8.py
+
+It will:
+
+Run an initial scan instantly.
+
+Display the real-time terminal dashboard.
+
+Auto-refresh every 10 minutes.
+
+🧭 Dashboard Panels
+Section Description
+💰 Cost Summary  Current, daily, and projected monthly costs.
+🖥️ Active Resources Running EC2, RDS, and Lambda instances with daily cost.
+💤 Idle Resources  Resources with low CPU/network activity (potential waste).
+📦 Snapshot Cleanup  Orphaned or old EBS snapshots.
+🌍 Data Transfer Matrix  Inter-region and internet egress costs.
+📊 Service Breakdown Top 10 services by cost.
+⚡ Status Panel  Account, region count, next scan time, and overall health.
+🗃️ Data Storage
+
+All scans are stored locally in an SQLite database:
+
+aws_costwatch.db
+
+
+You can query it manually:
+
+sqlite3 aws_costwatch.db "SELECT * FROM scans ORDER BY id DESC LIMIT 5;"
+
+🧠 FinOps Best Practices Supported
+Section	Description
+💰 Cost Summary	Current, daily, and projected monthly costs.
+🖥️ Active Resources	Running EC2, RDS, and Lambda instances with daily cost.
+💤 Idle Resources	Resources with low CPU/network activity (potential waste).
+📦 Snapshot Cleanup	Orphaned or old EBS snapshots.
+🌍 Data Transfer Matrix	Inter-region and internet egress costs.
+📊 Service Breakdown	Top 10 services by cost.
+⚡ Status Panel	Account, region count, next scan time, and overall health.
+
+🗃️ Data Storage
+All scans are stored locally in an SQLite database:
+
+Copy code
+aws_costwatch.db
+You can query it manually:
+
+bash
+Copy code
+sqlite3 aws_costwatch.db "SELECT * FROM scans ORDER BY id DESC LIMIT 5;"
+
+🧠 FinOps Best Practices Supported
+
+✅ Detect and clean up idle resources
+✅ Estimate cross-region transfer costs
+✅ Right-size EC2/RDS workloads
+✅ Track cost anomalies between scans
+✅ Optimize storage and snapshot retention
+
+📈 Release History
+Version Date  Highlights
+v8.1  2025-12-18  Added daily cost panel, idle resource estimator, EBS cleanup, and transfer matrix
+v8.0  2025-12-10  Real-time dashboard, SQLite persistence, budget support
+v7.x  2025-11 Early costwatch prototypes
+
+🧰 Tech Stack
+Component Purpose
+Python (boto3)  AWS API integration
+Rich  Terminal dashboard UI
+SQLite3 Local persistence
+CloudWatch / Cost Explorer  Metrics and cost data
+AWS Budgets API Budget tracking
+
+🧑‍💻 Author
+
+👤 Sarath V
+DevOps & Cloud Engineer
+🔗 GitHub Profile
+
+📧 (optional)
+
+⚖️ License
+
+This project is licensed under the MIT License – see the LICENSE
+ file for details.
+
+💬 Contributing
+
+Pull requests are welcome!
+Please open an issue first to discuss proposed changes.
+
+git checkout -b feature/my-new-feature
+git commit -m "Add new feature"
+git push origin feature/my-new-feature
+
+🌟 Support
+Version	Date	Highlights
+v8.1	2025-12-18	Added daily cost panel, idle resource estimator, EBS cleanup, and transfer matrix
+v8.0	2025-12-10	Real-time dashboard, SQLite persistence, budget support
+v7.x	2025-11	Early costwatch prototypes
+
+If you find this project useful, please ⭐ it on GitHub and share it with other FinOps engineers!
+Together we can make AWS cost visibility easy and automated.
+
+“You can’t optimize what you don’t measure. CostWatch helps you measure precisely.”
+
+— Sarath V
